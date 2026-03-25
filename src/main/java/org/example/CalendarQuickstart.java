@@ -13,16 +13,22 @@ import com.google.api.client.util.DateTime;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
-import com.google.api.services.calendar.model.Event;
-import com.google.api.services.calendar.model.Events;
+import com.google.api.services.calendar.model.*;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
-import java.util.List;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.*;
+
+import com.google.api.services.calendar.model.FreeBusyRequest;
+import com.google.api.services.calendar.model.FreeBusyRequestItem;
+import com.google.api.services.calendar.model.FreeBusyResponse;
 
 /* class to demonstrate use of Calendar events list API */
 public class CalendarQuickstart {
@@ -83,8 +89,10 @@ public class CalendarQuickstart {
                 new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
                         .setApplicationName(APPLICATION_NAME)
                         .build();
+    }
 
-        // List the next 10 events from the primary calendar.
+    // List the next 10 events from the primary calendar.
+    public static void listUpcomingEvents(Calendar service) throws IOException {
         DateTime now = new DateTime(System.currentTimeMillis());
         Events events = service.events().list("primary")
                 .setMaxResults(10)
@@ -104,6 +112,203 @@ public class CalendarQuickstart {
                 }
                 System.out.printf("%s (%s)\n", event.getSummary(), start);
             }
+        }
+    }
+
+    public static void searchByDateRange(Calendar service, String startDateStr, String endDateStr) throws IOException {
+
+// -- Pattern 3: From a user-typed date string (e.g. "2026-03-05") -----------
+        LocalDate userDate = LocalDate.parse(startDateStr);
+        DateTime startOfDay = new DateTime(
+                userDate.atStartOfDay(ZoneId.of("America/New_York"))
+                        .toInstant().toEpochMilli());
+
+        LocalDate userDate1 = LocalDate.parse(endDateStr);
+
+
+        DateTime end = new DateTime(endDateStr);
+        Events events = service.events().list("primary")
+                .setMaxResults(10)
+                .setOrderBy("startTime")
+                .setSingleEvents(true)
+                /// need to learn to translate
+                .setTimeMin(startOfDay)
+                .setTimeMax(end)
+
+                .execute();
+        List<Event> items = events.getItems();
+        if (items.isEmpty()) {
+            System.out.println("No upcoming events found.");
+        } else {
+            System.out.println("Upcoming events");
+            for (Event event : items) {
+                DateTime start = event.getStart().getDateTime();
+                if (start == null) {
+                    start = event.getStart().getDate();
+                }
+                System.out.printf("%s (%s)\n", event.getSummary(), start);
+
+            }
+
+        }
+    }
+
+    public static void createEvent(Calendar service) throws IOException {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Give summary");
+        String summary = scanner.next();
+
+        System.out.println("Give Year");
+        int year = scanner.nextInt();
+        System.out.println("Give Month");
+        int month = scanner.nextInt();
+        System.out.println("Give Day");
+        int day = scanner.nextInt();
+        System.out.println("Give Hour");
+        int hour = scanner.nextInt();
+        System.out.println("Give Min");
+        int min = scanner.nextInt();
+
+        System.out.println("Give startTime");
+        String startTime = scanner.next();
+        System.out.println("Give duration in Minutes");
+        String duration = scanner.next();
+
+
+
+        // 1. Build the Event object
+        Event event = new Event()
+                .setSummary(summary)
+                .setDescription(summary)
+                .setLocation("");
+
+// 2. Set start time
+        LocalDate userDate = LocalDate.parse(startTime);
+        DateTime startOfDay = new DateTime(
+                userDate.atStartOfDay(ZoneId.of("America/New_York"))
+                        .toInstant().toEpochMilli());
+        EventDateTime eventDt = new EventDateTime()
+                .setDateTime(startOfDay)
+                .setTimeZone("America/New_York");  // always include the timezone!
+
+
+
+
+        //Year-Month-Day-Hour-Min
+        event.setStart(eventDt);
+        ZonedDateTime startZdt = LocalDateTime.of(year, month, day, hour, min)
+                .atZone(ZoneId.of("America/New_York"));
+
+
+
+
+
+// 3. Set end time (1 hour later)
+        event.setEnd(new EventDateTime()
+                .setDateTime(new DateTime(startZdt.plusHours(Long.parseLong(duration)).toInstant().toEpochMilli()))
+                .setTimeZone("America/New_York"));
+
+        ArrayList<EventAttendee> peopleInvited = new ArrayList<>();
+
+// 4. Add attendees (optional)
+        System.out.println("If attendees, press 1. If not press 0");
+        int num  = scanner.nextInt();
+        if (num ==1) {
+            EventAttendee eventAttendee = new EventAttendee();
+            System.out.println("Give email");
+            String email = scanner.next();
+            eventAttendee.setEmail(email);
+            peopleInvited.add(eventAttendee);
+
+
+        }
+
+
+// 6. Insert the event
+        Event created = service.events()
+                .insert("primary", event)
+                .setSendUpdates("all")   // sends invite emails to attendees
+                .execute();
+        System.out.println("Created: " + created.getHtmlLink());
+        System.out.println("Event ID: " + created.getId());  // save this to update/delete later
+    }
+
+    public static void checkAvailability(Calendar service) throws IOException {
+
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Give startTime date + time");
+        String startTime = scanner.next();
+        System.out.println("Give endTime date + time");
+        String endTime = scanner.next();
+
+
+        // Check the next hour
+        LocalDate userDate = LocalDate.parse(startTime);
+        DateTime startOfDay = new DateTime(
+                userDate.atStartOfDay(ZoneId.of("America/New_York"))
+                        .toInstant().toEpochMilli());
+
+        LocalDate userDate1 = LocalDate.parse(endTime);
+        DateTime end = new DateTime(endTime);
+
+        FreeBusyRequest request = new FreeBusyRequest()
+                .setTimeMin(startOfDay)
+                .setTimeMax(end)
+                .setItems(List.of(new FreeBusyRequestItem().setId("primary")));
+
+        FreeBusyResponse response = service.freebusy().query(request).execute();
+
+// Parse the response: it's a map from calendar ID ? list of busy windows
+        var busySlots = response.getCalendars().get("primary").getBusy();
+        if (busySlots == null || busySlots.isEmpty()) {
+            System.out.println("? Calendar is FREE during this window.");
+        } else {
+            System.out.println("? Busy during:");
+            for (var slot : busySlots) {
+                // Each slot has a start and end — these are RFC3339 timestamp strings
+                // Example: "2026-03-05T10:00:00-05:00" to "2026-03-05T11:00:00-05:00"
+                System.out.println("  " + slot.getStart() + "  ?  " + slot.getEnd());
+            }
+        }
+    }
+
+    public static void deleteEvent(Calendar service) throws IOException {
+
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Give eventID");
+        String eventId = scanner.next();
+        System.out.println("Do you give permission");
+        String  response = scanner.next();
+        if (response.equalsIgnoreCase("no")) {
+            System.out.println("Too Bad! I'm doing it sucker :)");
+        }
+
+        // PATCH: update only specific fields — everything else is unchanged
+        Event patch = new Event().setSummary("Renamed Meeting");
+        service.events().patch("primary", eventId, patch)
+                .setSendUpdates("all").execute();
+
+// UPDATE: replaces the entire event object — unset fields get cleared!
+// Use this when you want to change many fields at once.
+        Event fullUpdate = service.events().get("primary", eventId).execute();
+        fullUpdate.setSummary("New Title");
+        fullUpdate.setDescription("Updated description");
+        service.events().update("primary", eventId, fullUpdate).execute();
+
+// DELETE
+        service.events().delete("primary", eventId).execute();
+        System.out.println("Event deleted");
+
+
+    }
+
+    public static void listCalendars(Calendar service) throws IOException {
+        // List every calendar visible to the authenticated user
+        var calendarList = service.calendarList().list().execute();
+        for (CalendarListEntry entry : calendarList.getItems()) {
+            System.out.println(entry.getSummary() + "  (ID: " + entry.getId() + ")");
+            // Use entry.getId() wherever the API asks for a calendarId
+            // "primary" is just a shortcut alias for the user's main calendar
         }
     }
 }

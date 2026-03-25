@@ -28,6 +28,13 @@ dependencies {
     implementation("com.google.api-client:google-api-client:2.0.0")
     implementation("com.google.oauth-client:google-oauth-client-jetty:1.34.1")
     implementation("com.google.apis:google-api-services-calendar:v3-rev20220715-2.0.0")
+
+    // Core Google API client (handles HTTP, JSON, OAuth plumbing)
+    implementation("com.google.api-client:google-api-client:2.7.0")
+// OAuth desktop flow — opens browser for user consent
+    implementation("com.google.oauth-client:google-oauth-client-jetty:1.34.1")
+// The Sheets-specific generated client library
+    implementation("com.google.apis:google-api-services-sheets:v4-rev20220927-2.0.0")
 }
 
 tasks.test {
