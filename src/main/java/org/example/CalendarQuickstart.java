@@ -20,10 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.*;
 
 import com.google.api.services.calendar.model.FreeBusyRequest;
@@ -243,24 +240,46 @@ public class CalendarQuickstart {
     public static void checkAvailability() throws IOException {
 
         Scanner scanner = new Scanner(System.in);
-        System.out.println("Give startTime date + time");
+        System.out.println("Give startTime date");
+        String startDate = scanner.next();
+        System.out.println("Give startTime time");
         String startTime = scanner.next();
-        System.out.println("Give endTime date + time");
+        System.out.println("Give endTime date");
+        String endDate = scanner.next();
+        System.out.println("Give endTime time");
         String endTime = scanner.next();
 
 
         // Check the next hour
-        LocalDate userDate = LocalDate.parse(startTime);
-        DateTime startOfDay = new DateTime(
-                userDate.atStartOfDay(ZoneId.of("America/New_York"))
-                        .toInstant().toEpochMilli());
+        LocalDate userDate = LocalDate.parse(startDate);
+        LocalTime userTime = LocalTime.parse(startTime);
+        ZonedDateTime ldt = LocalDateTime.of(
+                LocalDate.parse(userDate.toString()),   // "2026-03-05" ? a date object
+                LocalTime.parse(userTime.toString())    // "10:30" ? a time object
+        ).atZone(ZoneId.of("America/New_York"));
 
-        LocalDate userDate1 = LocalDate.parse(endTime);
-        DateTime end = new DateTime(endTime);
+
+//
+//        DateTime startOfDay = new DateTime(
+//                userDate.atStartOfDay(ZoneId.of("America/New_York"))
+//                        .toInstant().toEpochMilli());
+
+        LocalDate userDate1 = LocalDate.parse(endDate);
+        LocalTime userTime1 = LocalTime.parse(endTime);
+        ZonedDateTime ldt1 = LocalDateTime.of(
+                LocalDate.parse(userDate1.toString()),   // "2026-03-05" ? a date object
+                LocalTime.parse(userTime1.toString())    // "10:30" ? a time object
+        ).atZone(ZoneId.of("America/New_York"));
+//2026-03-21T10:30:00-4:00
+//2026-04-21T12:30:00-4:00
+        DateTime  dateTime = new DateTime(ldt.toInstant().toEpochMilli());
+        DateTime  dateTime1 = new DateTime(ldt1.toInstant().toEpochMilli());
+        System.out.println("Start: " + dateTime);
+        System.out.println("End: " + dateTime1);
 
         FreeBusyRequest request = new FreeBusyRequest()
-                .setTimeMin(startOfDay)
-                .setTimeMax(end)
+                .setTimeMin(dateTime)
+                .setTimeMax(dateTime1)
                 .setItems(List.of(new FreeBusyRequestItem().setId("primary")));
 
         FreeBusyResponse response = service.freebusy().query(request).execute();
