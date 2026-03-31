@@ -35,6 +35,8 @@ public class CalendarQuickstart {
     /**
      * Application name.
      */
+
+    static Calendar service = null;
     private static final String APPLICATION_NAME = "Google Calendar API Java Quickstart";
     /**
      * Global instance of the JSON factory.
@@ -50,7 +52,7 @@ public class CalendarQuickstart {
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
     private static final List<String> SCOPES =
-            Collections.singletonList(CalendarScopes.CALENDAR_READONLY);
+            Collections.singletonList(CalendarScopes.CALENDAR);
     private static final String CREDENTIALS_FILE_PATH = "/clientSecret.json";
 
     /**
@@ -82,17 +84,17 @@ public class CalendarQuickstart {
         return credential;
     }
 
-    public static void main(String... args) throws IOException, GeneralSecurityException {
+    public static void prepService() throws IOException, GeneralSecurityException {
         // Build a new authorized API client service.
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-        Calendar service =
+          service =
                 new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
                         .setApplicationName(APPLICATION_NAME)
                         .build();
     }
 
     // List the next 10 events from the primary calendar.
-    public static void listUpcomingEvents(Calendar service) throws IOException {
+    public static void listUpcomingEvents() throws IOException {
         DateTime now = new DateTime(System.currentTimeMillis());
         Events events = service.events().list("primary")
                 .setMaxResults(10)
@@ -115,7 +117,7 @@ public class CalendarQuickstart {
         }
     }
 
-    public static void searchByDateRange(Calendar service, String startDateStr, String endDateStr) throws IOException {
+    public static void searchByDateRange(String startDateStr, String endDateStr) throws IOException {
 
 // -- Pattern 3: From a user-typed date string (e.g. "2026-03-05") -----------
         LocalDate userDate = LocalDate.parse(startDateStr);
@@ -123,10 +125,11 @@ public class CalendarQuickstart {
                 userDate.atStartOfDay(ZoneId.of("America/New_York"))
                         .toInstant().toEpochMilli());
 
-        LocalDate userDate1 = LocalDate.parse(endDateStr);
 
+        LocalDate endDateLD = LocalDate.parse(endDateStr);
 
-        DateTime end = new DateTime(endDateStr);
+        DateTime end = new DateTime(endDateLD.toString()+"T00:00:00-04:00");
+
         Events events = service.events().list("primary")
                 .setMaxResults(10)
                 .setOrderBy("startTime")
@@ -153,24 +156,27 @@ public class CalendarQuickstart {
         }
     }
 
-    public static void createEvent(Calendar service) throws IOException {
+    public static void createEvent() throws IOException {
         Scanner scanner = new Scanner(System.in);
+        Scanner scanner2 = new Scanner(System.in);
+
         System.out.println("Give summary");
         String summary = scanner.next();
-
+        scanner.reset();
         System.out.println("Give Year");
-        int year = scanner.nextInt();
+        String year = scanner2.next();
         System.out.println("Give Month");
-        int month = scanner.nextInt();
+        String month = scanner.next();
         System.out.println("Give Day");
-        int day = scanner.nextInt();
+        String day = scanner.next();
         System.out.println("Give Hour");
-        int hour = scanner.nextInt();
+        String hour = scanner.next();
         System.out.println("Give Min");
-        int min = scanner.nextInt();
+        String min = scanner.next();
 
-        System.out.println("Give startTime");
-        String startTime = scanner.next();
+
+        String startTime = year + "-" + month + "-" + day;
+        // + "T" + hour + ":" + min + ":" + "00-4:003
         System.out.println("Give duration in Minutes");
         String duration = scanner.next();
 
@@ -196,7 +202,8 @@ public class CalendarQuickstart {
 
         //Year-Month-Day-Hour-Min
         event.setStart(eventDt);
-        ZonedDateTime startZdt = LocalDateTime.of(year, month, day, hour, min)
+
+        ZonedDateTime startZdt = LocalDateTime.of(Integer.parseInt(year), Integer.parseInt(month), Integer.parseInt(day), Integer.parseInt(hour), Integer.parseInt(min))
                 .atZone(ZoneId.of("America/New_York"));
 
 
@@ -205,7 +212,7 @@ public class CalendarQuickstart {
 
 // 3. Set end time (1 hour later)
         event.setEnd(new EventDateTime()
-                .setDateTime(new DateTime(startZdt.plusHours(Long.parseLong(duration)).toInstant().toEpochMilli()))
+                .setDateTime(new DateTime(startZdt.plusMinutes(Long.parseLong(duration)).toInstant().toEpochMilli()))
                 .setTimeZone("America/New_York"));
 
         ArrayList<EventAttendee> peopleInvited = new ArrayList<>();
@@ -233,7 +240,7 @@ public class CalendarQuickstart {
         System.out.println("Event ID: " + created.getId());  // save this to update/delete later
     }
 
-    public static void checkAvailability(Calendar service) throws IOException {
+    public static void checkAvailability() throws IOException {
 
         Scanner scanner = new Scanner(System.in);
         System.out.println("Give startTime date + time");
@@ -272,7 +279,7 @@ public class CalendarQuickstart {
         }
     }
 
-    public static void deleteEvent(Calendar service) throws IOException {
+    public static void deleteEvent() throws IOException {
 
         Scanner scanner = new Scanner(System.in);
         System.out.println("Give eventID");
@@ -302,13 +309,21 @@ public class CalendarQuickstart {
 
     }
 
-    public static void listCalendars(Calendar service) throws IOException {
+    public static void listCalendars() throws IOException {
         // List every calendar visible to the authenticated user
         var calendarList = service.calendarList().list().execute();
         for (CalendarListEntry entry : calendarList.getItems()) {
             System.out.println(entry.getSummary() + "  (ID: " + entry.getId() + ")");
             // Use entry.getId() wherever the API asks for a calendarId
             // "primary" is just a shortcut alias for the user's main calendar
+        }
+    }
+    public static void main(String[] args) {
+        try {
+            prepService();
+            listUpcomingEvents(); // or whatever method you want to test
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
