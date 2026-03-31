@@ -259,6 +259,7 @@ public class CalendarQuickstart {
         ).atZone(ZoneId.of("America/New_York"));
 
 
+
 //
 //        DateTime startOfDay = new DateTime(
 //                userDate.atStartOfDay(ZoneId.of("America/New_York"))
